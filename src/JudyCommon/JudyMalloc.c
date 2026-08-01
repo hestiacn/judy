@@ -25,7 +25,6 @@
 //                         (970) 229-2027				  //
 //									  //
 // ************************************************************************ //
-
 // JUDY INCLUDE FILES
 #include "Judy.h"
 
@@ -35,7 +34,7 @@
 // Allocate RAM.  This is the single location in Judy code that calls
 // malloc(3C).  Note:  JPM accounting occurs at a higher level.
 
-Word_t JudyMalloc(
+JUDY_API Word_t JudyMalloc(
 	Word_t Words)
 {
 	Word_t Addr;
@@ -49,7 +48,7 @@ Word_t JudyMalloc(
 // ****************************************************************************
 // J U D Y   F R E E
 
-void JudyFree(
+JUDY_API void JudyFree(
 	void * PWord,
 	Word_t Words)
 {
@@ -67,7 +66,7 @@ void JudyFree(
 // entire subtrees (at a JPM or branch) can be "virtual", so their allocations
 // and frees should go through this level.
 
-Word_t JudyMallocVirtual(
+JUDY_API Word_t JudyMallocVirtual(
 	Word_t Words)
 {
 	return(JudyMalloc(Words));
@@ -78,7 +77,7 @@ Word_t JudyMallocVirtual(
 // ****************************************************************************
 // J U D Y   F R E E
 
-void JudyFreeVirtual(
+JUDY_API void JudyFreeVirtual(
 	void * PWord,
 	Word_t Words)
 {

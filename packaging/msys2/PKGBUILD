@@ -1,0 +1,178 @@
+_realname=libjudy
+pkgbase=${_realname}
+pkgname=('libjudy' 'libjudy-devel')
+#("${MINGW_PACKAGE_PREFIX}-${_realname}")
+_basever=1.0.6
+_patchlevel=xxxxxx
+pkgver=1.0.6
+#${_basever}.${_patchlevel}
+pkgrel=1
+pkgdesc="Judy - C library creating and accessing dynamic arrays"
+arch=('i686' 'x86_64')
+url="https://sourceforge.net/projects/judy/"
+license=('LGPL-2.1-or-later')
+depends=(
+)
+makedepends=(
+  'autotools'
+  'gcc'
+  'make'
+)
+
+prepare() {
+  set | egrep "^\S+="
+  pwd
+  ls -la
+  echo "srcdir=$srcdir"
+
+  # 进入项目根目录
+  cd ../../..
+  pwd
+
+  ./bootstrap
+}
+
+build() {
+  pwd
+  cd "$srcdir"
+  pwd
+  
+  # 获取项目根目录
+  cd ../../..
+  PROJECT_ROOT=$(pwd)
+  echo "PROJECT_ROOT=$PROJECT_ROOT"
+
+  BIT_FLAG=""
+  if [[ "${MSYSTEM}" == "MINGW64" ]]; then
+    BIT_FLAG="-DJU_64BIT"
+    echo "Building for 64-bit"
+  else
+    BIT_FLAG="-DJU_32BIT"
+    echo "Building for 32-bit"
+  fi
+  echo "BIT_FLAG=${BIT_FLAG}"
+
+  mkdir -p ${srcdir}/build-default-${MSYSTEM}
+  cd ${srcdir}/build-default-${MSYSTEM}
+
+  ${PROJECT_ROOT}/configure \
+    --prefix=/usr \
+    --host=${MINGW_CHOST} \
+    --build=${MINGW_CHOST}
+
+  make
+
+  make check || true
+
+  make DESTDIR=${srcdir}/build-default-install install
+
+  echo "#### PREPROCESSOR"
+  pwd
+  cd src/JudyL
+  pwd
+  bit=$(echo $MSYSTEM | sed -e 's/MINGW//i')
+  echo $bit
+  ls -lad ${PROJECT_ROOT}/src/JudyL/
+  ls -lad ${PROJECT_ROOT}/src/JudyL/..
+  ls -lad ${PROJECT_ROOT}/src/JudyL/../JudyCommon/
+  echo gcc -I${PROJECT_ROOT}/src/JudyL/ -I${PROJECT_ROOT}/src/JudyL/.. -I${PROJECT_ROOT}/src/JudyL/../JudyCommon/ -DJUDYL -g -O2 -DJU_${bit}BIT -dM -E JudyLTablesGen.c
+  gcc -I${PROJECT_ROOT}/src/JudyL/ -I${PROJECT_ROOT}/src/JudyL/.. -I${PROJECT_ROOT}/src/JudyL/../JudyCommon/ -DJUDYL -g -O2 -DJU_${bit}BIT -dM -E JudyLTablesGen.c || true
+  echo "#### PREPROCESSOR"
+
+  # CI diag
+  ls -laR ${srcdir}/build-default-install || true
+  find ${srcdir}/build-default-install || true
+
+  # 静态库构建
+  mkdir -p ${srcdir}/build-static-${MSYSTEM}
+  cd ${srcdir}/build-static-${MSYSTEM}
+
+  ${PROJECT_ROOT}/configure \
+    --prefix=/usr \
+    --host=${MINGW_CHOST} \
+    --build=${MINGW_CHOST} \
+    --enable-static \
+    --disable-shared
+
+  make
+
+  make check || true
+
+  make DESTDIR=${srcdir}/build-static-install install
+
+  # CI diag
+  ls -laR ${srcdir}/build-static-install || true
+  find ${srcdir}/build-static-install || true
+
+  # 共享库构建
+  mkdir -p ${srcdir}/build-shared-${MSYSTEM}
+  cd ${srcdir}/build-shared-${MSYSTEM}
+
+  CFLAGS="-DJUDY_DLL_EXPORT ${BIT_FLAG}" \
+  LDFLAGS="-Wl,-no-undefined" \
+  ${PROJECT_ROOT}/configure \
+    --prefix=/usr \
+    --host=${MINGW_CHOST} \
+    --build=${MINGW_CHOST} \
+    --disable-static \
+    --enable-shared
+
+  sed -i.bak -e "s/\(allow_undefined=\)yes/\1no/" libtool
+  diff -u libtool.bak libtool || true
+
+  make
+
+  make check || true
+
+  make DESTDIR=${srcdir}/build-shared-install install
+
+  # CI diag
+  ls -laR ${srcdir}/build-shared-install || true
+  find ${srcdir}/build-shared-install || true
+}
+
+package_libjudy() {
+  groups=('libraries')
+
+  mkdir -p ${pkgdir}/usr
+  
+  if [ -d "${srcdir}/build-shared-install/usr/bin" ]; then
+    cp -rf ${srcdir}/build-shared-install/usr/bin ${pkgdir}/usr/
+  fi
+  if [ -d "${srcdir}/build-shared-install/usr/lib" ]; then
+    cp -rf ${srcdir}/build-shared-install/usr/lib ${pkgdir}/usr/
+  fi
+
+  pwd
+  ls -l
+  echo pkgdir=$pkgdir
+  ls -lad ${pkgdir}
+  ls -laR ${pkgdir}
+  find ${pkgdir}
+}
+
+package_libjudy-devel() {
+  groups=('development')
+  options=('staticlibs')
+  depends=("libjudy=${pkgver}")
+  pkgdesc="judy header and libraries"
+
+  mkdir -p ${pkgdir}/usr
+  
+  if [ -d "${srcdir}/build-static-install/usr/include" ]; then
+    cp -rf -p ${srcdir}/build-static-install/usr/include ${pkgdir}/usr/
+  fi
+  if [ -d "${srcdir}/build-static-install/usr/lib" ]; then
+    cp -rf -p ${srcdir}/build-static-install/usr/lib ${pkgdir}/usr/
+  fi
+  if [ -d "${srcdir}/build-static-install/usr/share" ]; then
+    cp -rf -p ${srcdir}/build-static-install/usr/share ${pkgdir}/usr/
+  fi
+
+  pwd
+  ls -l
+  echo pkgdir=$pkgdir
+  ls -lad ${pkgdir}
+  ls -laR ${pkgdir}
+  find ${pkgdir}
+}

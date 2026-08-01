@@ -7,7 +7,6 @@
 //=======================================================================
 
 #include <string.h>                     // for memcmp(), memcpy()
-
 #include <Judy.h>                       // for JudyL* routines/macros
 
 /*
@@ -258,10 +257,11 @@ typedef struct L_EAFSTRING
 
 // Find String of Len in JudyHS structure, return pointer to associated Value
 
-PPvoid_t
+JUDY_API PPvoid_t
 JudyHSGet(Pcvoid_t PArray,              // pointer (^) to structure
            void * Str,                  // pointer to string
-           Word_t Len                   // length of string
+           Word_t Len,                  // length of string
+           P_JE                         // for returning error info
     )
 {
     uint8_t  *String = (uint8_t *)Str;
@@ -450,10 +450,9 @@ insStrJudyLTree(uint8_t * String,      // string to add to tree of JudyL arrays
     return (PPValue);
 }
 
-
 // Insert string to JudyHS structure, return pointer to associated Value
 
-PPvoid_t
+JUDY_API PPvoid_t
 JudyHSIns(PPvoid_t PPArray,             // ^ to JudyHashArray name
            void * Str,                  // pointer to string
            Word_t Len,                  // length of string
@@ -552,7 +551,7 @@ delStrJudyLTree(uint8_t * String,      // delete from tree of JudyL arrays
 
 // Delete string from JHS structure
 
-int
+JUDY_API int
 JudyHSDel(PPvoid_t PPArray,             // ^ to JudyHashArray struct
            void * Str,                  // pointer to string
            Word_t Len,                  // length of string
@@ -572,7 +571,7 @@ JudyHSDel(PPvoid_t PPArray,             // ^ to JudyHashArray struct
 //  This is a little slower than optimum method, but not much in new CPU
 //  Verify that string is in the structure -- simplifies future assumptions
 
-    if (JudyHSGet(*PPArray, String, Len) == (PPvoid_t) NULL)
+    if (JudyHSGet(*PPArray, String, Len, PJError) == (PPvoid_t) NULL)
         return (0);                     // string not found, return
 
 //  string is in structure, so testing for absence is not necessary
@@ -634,6 +633,82 @@ JudyHSDel(PPvoid_t PPArray,             // ^ to JudyHashArray struct
         }
     }
     return (1);                         // success
+}
+
+JUDY_API Word_t
+JudyHSDelGet(PPvoid_t PPArray,          // ^ to JudyHashArray struct
+              void * Str,               // pointer to string
+              Word_t Len,               // length of string
+              Word_t * PValue,          // output: deleted value
+              PJError_t PJError         // optional, for returning error info
+    )
+{
+    uint8_t * String = (uint8_t *)Str;
+    PPvoid_t  PPBucket, PPHtble;
+    int       Ret;
+    Word_t    deletedValue = 0;
+#ifndef DONOTUSEHASH
+    uint32_t  HValue = 0;
+#endif
+
+    if (PPArray == NULL) {
+        if (PValue) *PValue = 0;
+        return 0;
+    }
+
+    // 1. 先查找获取值
+    PPvoid_t ppValue = JudyHSGet(*PPArray, String, Len, PJError);
+    if (ppValue == (PPvoid_t)NULL) {
+        if (PValue) *PValue = 0;
+        return 0;                       // string not found
+    }
+    deletedValue = *(PWord_t)ppValue;
+
+    // 2. 执行删除（复用 JudyHSDel 的核心逻辑）
+    JLG(PPHtble, *PPArray, Len);
+
+#ifdef DONOTUSEHASH
+    PPBucket = PPHtble;
+#else
+    if (Len > WORDSIZE) {
+        JUDYHASHSTR(HValue, String, Len);
+        JLG(PPBucket, *PPHtble, (Word_t)HValue);
+    } else {
+        PPBucket = PPHtble;
+    }
+#endif
+
+    Ret = delStrJudyLTree(String, Len, PPBucket, PJError);
+    if (Ret != 1) {
+        JU_SET_ERRNO(PJError, 0);
+        if (PValue) *PValue = 0;
+        return 0;
+    }
+
+    // 清理空桶和长度表（与 JudyHSDel 相同）
+    if (*PPBucket == (Pvoid_t)NULL) {
+#ifndef DONOTUSEHASH
+        if (Len > WORDSIZE) {
+            Ret = JudyLDel(PPHtble, (Word_t)HValue, PJError);
+            if (Ret != 1) {
+                JU_SET_ERRNO(PJError, 0);
+                if (PValue) *PValue = 0;
+                return 0;
+            }
+        }
+#endif
+        if (*PPHtble == (PPvoid_t)NULL) {
+            Ret = JudyLDel(PPArray, Len, PJError);
+            if (Ret != 1) {
+                JU_SET_ERRNO(PJError, 0);
+                if (PValue) *PValue = 0;
+                return 0;
+            }
+        }
+    }
+
+    if (PValue) *PValue = deletedValue;
+    return deletedValue;                // 返回被删除的值
 }
 
 static Word_t
@@ -699,8 +774,7 @@ delJudyLTree(PPvoid_t PPValue,                 // ^ to JudyL root pointer
     return(bytes_freed);
 }
 
-
-Word_t                                  // bytes freed
+JUDY_API Word_t
 JudyHSFreeArray(PPvoid_t PPArray,       // ^ to JudyHashArray struct
            PJError_t PJError            // optional, for returning error info
     )

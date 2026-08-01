@@ -674,7 +674,6 @@ FUNCTION void EmitNroffHeader(
 	char *	pagesection;		// such as "3X".
 	char	lcletter;		// manual tab section, such as "j".
 	char *	revision;		// from centered table datum.
-	time_t	currtime;		// for ctime().
 
 // Extract "weird" header values:
 //
@@ -692,9 +691,8 @@ FUNCTION void EmitNroffHeader(
 
 // Emit file header; note, ctime() output already contains a newline:
 
-	(void) time(&currtime);
-	(void) printf(".\\\" Auto-translated to nroff -man from %s by %s at %s",
-		      Filename, gc_myname, ctime(&currtime));
+	(void) printf(".\\\" Auto-translated to nroff -man from %s by %s\n",
+		      Filename, gc_myname);
 
 	(void) printf(".\\\" %s\n",  filerev);
 	(void) printf(".TA %c\n",    lcletter);

@@ -1,0 +1,11 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: Judy
+Description: Judy dynamic array library
+Version: 1.0.6
+Libs: -L${libdir} -lJudy
+Libs.private: -Wl,-rpath,${libdir}
+Cflags: -I${includedir}

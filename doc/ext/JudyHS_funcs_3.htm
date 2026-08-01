@@ -25,6 +25,7 @@ as a <B>Value</B>.
 <B><PRE>
 PPvoid_t <A href="#JudyHSIns"      >JudyHSIns</A>(PPvoid_t PPJHS, void *Index, Word_t Length, PJError_t PJError);
 int      <A href="#JudyHSDel"      >JudyHSDel</A>(PPvoid_t PPJHS, void *Index, Word_t Length, PJError_t PJError);
+Word_t   <A href="#JudyHSDelGet"   >JudyHSDelGet</A>(PPvoid_t PPJHS, void *Index, Word_t Length, Word_t *PValue, PJError_t PJError);
 PPvoid_t <A href="#JudyHSGet"      >JudyHSGet</A>(Pcvoid_t  PJHS, void *Index, Word_t Length, PJError_t PJError);
 Word_t   <A href="#JudyHSFreeArray">JudyHSFreeArray</A>(PPvoid_t PPJHS, PJError_t PJError);
 </PRE></B>
@@ -68,8 +69,8 @@ Notice the placement of the <B>&amp;</B> in the different functions.
 <DT><A name="JudyHSIns"><B>JudyHSIns(&amp;PJHS, Index, Length, &amp;JError)</B></A></DT>
 <DD>
 <PRE>
-#define JHSI(PValue, PJHS, Index) \
-   PValue = JudyLIns(&amp;PJHS, Index, PJE0)
+#define JHSI(PValue, PJHS, Index, Length) \
+   PValue = JudyHSIns(&amp;PJHS, Index, Length, PJE0)
 
 </PRE>
 <P>
@@ -81,11 +82,37 @@ Notice the placement of the <B>&amp;</B> in the different functions.
 
 </PRE>
 <P>
+<DT><A name="JudyHSDelGet"><B>JudyHSDelGet(&amp;PJHS, Index, Length, &amp;Value, &amp;JError)</B></A></DT>
+<DD>
+Deletes the specified Index from the JudyHS array and returns its associated
+Value in the <B>PValue</B> output parameter.  The function returns the deleted
+Value as its return value, allowing the caller to clean up any external
+resources associated with the deleted entry in a single operation, without
+requiring a separate <B>JudyHSGet</B> call.
+<P>
+This function is particularly useful when the stored Value is a pointer
+to dynamically allocated memory that needs to be freed upon deletion.
+<P>
+<B>Return Value:</B>  The deleted Value (as <B>Word_t</B>).  If the Index is not found,
+the function returns 0 and sets <B>*PValue</B> to 0.  Upon error, the function
+returns 0 and sets the appropriate <B>JU_ERRNO_*</B> value in the error
+structure.
+<P>
+<B>Note:</B> The <B>PValue</B> output parameter may be <B>NULL</B> if the caller does
+not need the deleted Value, in which case the function behaves identically
+to <B>JudyHSDel</B> but still returns the deleted Value.
+<P>
+<PRE>
+#define JHSDG(Rc_word, PJHS, Index, Length, PValue) \
+   Rc_word = JudyHSDelGet(&amp;PJHS, Index, Length, &amp;PValue, PJE0)
+
+</PRE>
+<P>
 <DT><A name="JudyHSGet"><B>JudyHSGet(PJHS, Index, Length)</B></A></DT>
 <DD>
 <PRE>
 #define JHSG(PValue, PJHS, Index, Length) \
-   PValue = JudyHSIns(PJHS, Index, Length)
+   PValue = JudyHSGet(PJHS, Index, Length, PJE0)
 
 </PRE>
 <P>
@@ -129,6 +156,9 @@ to a value is required instead of a pointer to a pointer.
 <DT><B>AUTHOR</B></DT>
 <DD>
 JudyHS was invented and implemented by Doug Baskins after retiring from Hewlett-Packard.
+<P>
+<B>JudyHSDelGet</B> was added by the HestiaCN maintenance branch to address
+the limitation of <B>JudyHSDel</B> not returning the deleted value.
 <!----------------->
 <P>
 <DT><B>SEE ALSO</B></DT>

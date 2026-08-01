@@ -1502,11 +1502,11 @@ JudyBranchB:
 
             JU_BITMAPSETL(Pjlb, Index);
 
-            for (offset = 0; offset < 15; ++offset)
+            for (offset = 0; offset < (int)sizeof(Pjp->jp_1Index); ++offset)
                 JU_BITMAPSETL(Pjlb, Pjp->jp_1Index[offset]);
 
 //          Set jp_DcdPopO including the current pop0; incremented later:
-            DcdP0 = (Index & cJU_DCDMASK(1)) + 15 - 1;
+            DcdP0 = (Index & cJU_DCDMASK(1)) + (int)sizeof(Pjp->jp_1Index) - 1;
             JU_JPSETADT(Pjp, (Word_t)PjlbRaw, DcdP0, cJU_JPLEAF_B1);
 
             return(1);

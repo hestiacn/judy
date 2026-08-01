@@ -59,6 +59,22 @@ typedef unsigned __int64 uint64_t;
 
 // ISO C99 Standard: 7.10/5.2.4.2.1 Sizes of integer types
 #include <limits.h>  
+// DLL Export/Import Macros - Distinguishing MSVC and MinGW
+#if defined(__MINGW32__) || defined(__MINGW64__)
+    #ifdef JUDY_DLL_EXPORT
+        #define JUDY_API __attribute__((visibility("default")))
+    #else
+        #define JUDY_API
+    #endif
+#elif defined(_WIN32)
+    #ifdef JUDY_DLL_EXPORT
+        #define JUDY_API __declspec(dllexport)
+    #else
+        #define JUDY_API __declspec(dllimport)
+    #endif
+#else
+    #define JUDY_API
+#endif
 
 #ifdef __cplusplus      /* support use by C++ code */
 extern "C" {
@@ -90,8 +106,43 @@ typedef void ** PPvoid_t;
 #endif
 
 #ifndef _WORD_T
-#define _WORD_T
-typedef unsigned long    Word_t, * PWord_t;  // expect 32-bit or 64-bit words.
+
+ #if defined(_MSC_VER) || defined(__GNUC__) || defined(__clang__) || defined(__MINGW64__) || defined(__MINGW32__)
+ // WIN64 model is llp64 and GCC provides a preprocessor to help out here
+ // The build also expects to have UINTPTR_C() cast where UL or ULL suffix is need.
+ // The build also expects to have INTPTR_C() cast where L or LL suffix is need.
+   #include <stdint.h>
+   #define _WORD_T
+   typedef uintptr_t Word_t, * PWord_t;  // expect 32-bit or 64-bit words.
+
+   #if (INTPTR_MAX == INT32_MAX)
+     #define INTPTR_C(val) val ##L
+   #elif (INTPTR_MAX == INT64_MAX)
+     #define INTPTR_C(val) val ##LL
+   #else
+     #define INTPTR_C(val) val ##L
+     #error "Unknown INTPTR_MAX"
+   #endif
+
+   #if (UINTPTR_MAX == UINT32_MAX)
+     #define UINTPTR_C(val) val ##UL
+   #elif (UINTPTR_MAX == UINT64_MAX)
+     #define UINTPTR_C(val) val ##ULL
+   #else
+     #define UINTPTR_C(val) val ##UL
+     #error "Unknown UINTPTR_MAX"
+   #endif
+
+ #else
+   #define _WORD_T
+   typedef unsigned long Word_t, * PWord_t;  // expect 32-bit or 64-bit words.
+ #endif
+ #ifndef INTPTR_C
+   #define INTPTR_C(val) val ##L
+ #endif
+ #ifndef UINTPTR_C
+   #define UINTPTR_C(val) val ##UL
+ #endif
 #endif
 
 #ifndef NULL
@@ -201,8 +252,8 @@ typedef struct J_UDY_ERROR_STRUCT
 // warning.
 
 #define   JERR (-1)                     /* functions returning int or Word_t */
-#define  PJERR ((Pvoid_t)  (~0UL))      /* mainly for use here, see below    */
-#define PPJERR ((PPvoid_t) (~0UL))      /* functions that return PPvoid_t    */
+#define  PJERR ((Pvoid_t)  (UINTPTR_C(~0)))      /* mainly for use here, see below    */
+#define PPJERR ((PPvoid_t) (UINTPTR_C(~0)))      /* functions that return PPvoid_t    */
 
 // Convenience macro for when detailed error information (PJError_t) is not
 // desired by the caller; a purposely short name:
@@ -220,84 +271,86 @@ typedef struct J_UDY_ERROR_STRUCT
 // ****************************************************************************
 // JUDY1 FUNCTIONS:
 
-extern int      Judy1Test(       Pcvoid_t  PArray, Word_t   Index,   P_JE);
-extern int      Judy1Set(        PPvoid_t PPArray, Word_t   Index,   P_JE);
-extern int      Judy1SetArray(   PPvoid_t PPArray, Word_t   Count,
+extern JUDY_API int      Judy1Test(       Pcvoid_t  PArray, Word_t   Index,   P_JE);
+extern JUDY_API int      Judy1Set(        PPvoid_t PPArray, Word_t   Index,   P_JE);
+extern JUDY_API int      Judy1SetArray(   PPvoid_t PPArray, Word_t   Count,
                                              const Word_t * const PIndex,
                                                                      P_JE);
-extern int      Judy1Unset(      PPvoid_t PPArray, Word_t   Index,   P_JE);
-extern Word_t   Judy1Count(      Pcvoid_t  PArray, Word_t   Index1,
+extern JUDY_API int      Judy1Unset(      PPvoid_t PPArray, Word_t   Index,   P_JE);
+extern JUDY_API Word_t   Judy1Count(      Pcvoid_t  PArray, Word_t   Index1,
                                                    Word_t   Index2,  P_JE);
-extern int      Judy1ByCount(    Pcvoid_t  PArray, Word_t   Count,
+extern JUDY_API int      Judy1ByCount(    Pcvoid_t  PArray, Word_t   Count,
                                                    Word_t * PIndex,  P_JE);
-extern Word_t   Judy1FreeArray(  PPvoid_t PPArray,                   P_JE);
-extern Word_t   Judy1MemUsed(    Pcvoid_t  PArray);
-extern Word_t   Judy1MemActive(  Pcvoid_t  PArray);
-extern int      Judy1First(      Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      Judy1Next(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      Judy1Last(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      Judy1Prev(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      Judy1FirstEmpty( Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      Judy1NextEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      Judy1LastEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      Judy1PrevEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-
-extern PPvoid_t JudyLGet(        Pcvoid_t  PArray, Word_t    Index,  P_JE);
-extern PPvoid_t JudyLIns(        PPvoid_t PPArray, Word_t    Index,  P_JE);
-extern int      JudyLInsArray(   PPvoid_t PPArray, Word_t    Count,
-                                             const Word_t * const PIndex,
-                                             const Word_t * const PValue,
+extern JUDY_API Word_t   Judy1FreeArray(  PPvoid_t PPArray,                   P_JE);
+extern JUDY_API Word_t   Judy1MemUsed(    Pcvoid_t  PArray);
+extern JUDY_API Word_t   Judy1MemActive(  Pcvoid_t  PArray);
+extern JUDY_API int      Judy1First(      Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      Judy1Next(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      Judy1Last(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      Judy1Prev(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      Judy1FirstEmpty( Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      Judy1NextEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      Judy1LastEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      Judy1PrevEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
 
 // ****************************************************************************
 // JUDYL FUNCTIONS:
+
+extern JUDY_API PPvoid_t JudyLGet(        Pcvoid_t  PArray, Word_t    Index,  P_JE);
+extern JUDY_API PPvoid_t JudyLIns(        PPvoid_t PPArray, Word_t    Index,  P_JE);
+extern JUDY_API int      JudyLInsArray(   PPvoid_t PPArray, Word_t    Count,
+                                             const Word_t * const PIndex,
+                                             const Word_t * const PValue,
                                                                      P_JE);
-extern int      JudyLDel(        PPvoid_t PPArray, Word_t    Index,  P_JE);
-extern Word_t   JudyLCount(      Pcvoid_t  PArray, Word_t    Index1,
+extern JUDY_API int      JudyLDel(        PPvoid_t PPArray, Word_t    Index,  P_JE);
+extern JUDY_API Word_t   JudyLCount(      Pcvoid_t  PArray, Word_t    Index1,
                                                    Word_t    Index2, P_JE);
-extern PPvoid_t JudyLByCount(    Pcvoid_t  PArray, Word_t    Count,
+extern JUDY_API PPvoid_t JudyLByCount(    Pcvoid_t  PArray, Word_t    Count,
                                                    Word_t *  PIndex, P_JE);
-extern Word_t   JudyLFreeArray(  PPvoid_t PPArray,                   P_JE);
-extern Word_t   JudyLMemUsed(    Pcvoid_t  PArray);
-extern Word_t   JudyLMemActive(  Pcvoid_t  PArray);
-extern PPvoid_t JudyLFirst(      Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern PPvoid_t JudyLNext(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern PPvoid_t JudyLLast(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern PPvoid_t JudyLPrev(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      JudyLFirstEmpty( Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      JudyLNextEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      JudyLLastEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
-extern int      JudyLPrevEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API Word_t   JudyLFreeArray(  PPvoid_t PPArray,                   P_JE);
+extern JUDY_API Word_t   JudyLMemUsed(    Pcvoid_t  PArray);
+extern JUDY_API Word_t   JudyLMemActive(  Pcvoid_t  PArray);
+extern JUDY_API PPvoid_t JudyLFirst(      Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API PPvoid_t JudyLNext(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API PPvoid_t JudyLLast(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API PPvoid_t JudyLPrev(       Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      JudyLFirstEmpty( Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      JudyLNextEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      JudyLLastEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
+extern JUDY_API int      JudyLPrevEmpty(  Pcvoid_t  PArray, Word_t * PIndex,  P_JE);
 
 // ****************************************************************************
 // JUDYSL FUNCTIONS:
 
-extern PPvoid_t JudySLGet(       Pcvoid_t, const uint8_t * Index, P_JE);
-extern PPvoid_t JudySLIns(       PPvoid_t, const uint8_t * Index, P_JE);
-extern int      JudySLDel(       PPvoid_t, const uint8_t * Index, P_JE);
-extern Word_t   JudySLFreeArray( PPvoid_t,                        P_JE);
-extern PPvoid_t JudySLFirst(     Pcvoid_t,       uint8_t * Index, P_JE);
-extern PPvoid_t JudySLNext(      Pcvoid_t,       uint8_t * Index, P_JE);
-extern PPvoid_t JudySLLast(      Pcvoid_t,       uint8_t * Index, P_JE);
-extern PPvoid_t JudySLPrev(      Pcvoid_t,       uint8_t * Index, P_JE);
+extern JUDY_API PPvoid_t JudySLGet(       Pcvoid_t, const uint8_t * Index, P_JE);
+extern JUDY_API PPvoid_t JudySLIns(       PPvoid_t, const uint8_t * Index, P_JE);
+extern JUDY_API int      JudySLDel(       PPvoid_t, const uint8_t * Index, P_JE);
+extern JUDY_API Word_t   JudySLFreeArray( PPvoid_t,                        P_JE);
+extern JUDY_API PPvoid_t JudySLFirst(     Pcvoid_t,       uint8_t * Index, P_JE);
+extern JUDY_API PPvoid_t JudySLNext(      Pcvoid_t,       uint8_t * Index, P_JE);
+extern JUDY_API PPvoid_t JudySLLast(      Pcvoid_t,       uint8_t * Index, P_JE);
+extern JUDY_API PPvoid_t JudySLPrev(      Pcvoid_t,       uint8_t * Index, P_JE);
 
 // ****************************************************************************
 // JUDYHSL FUNCTIONS:
 
-extern PPvoid_t JudyHSGet(       Pcvoid_t,  void *, Word_t);
-extern PPvoid_t JudyHSIns(       PPvoid_t,  void *, Word_t, P_JE);
-extern int      JudyHSDel(       PPvoid_t,  void *, Word_t, P_JE);
-extern Word_t   JudyHSFreeArray( PPvoid_t,                  P_JE);
+extern JUDY_API PPvoid_t JudyHSGet(       Pcvoid_t,  void *, Word_t, P_JE);
+extern JUDY_API PPvoid_t JudyHSIns(       PPvoid_t,  void *, Word_t, P_JE);
+extern JUDY_API int      JudyHSDel(       PPvoid_t,  void *, Word_t, P_JE);
+extern JUDY_API Word_t   JudyHSFreeArray( PPvoid_t,                  P_JE);
+// 新增: 删除并返回被删除的值
+extern JUDY_API Word_t   JudyHSDelGet(    PPvoid_t,  void *, Word_t, Word_t *, P_JE);
 
-extern const char *Judy1MallocSizes;
-extern const char *JudyLMallocSizes;
+extern JUDY_API const char *Judy1MallocSizes;
+extern JUDY_API const char *JudyLMallocSizes;
 
 // ****************************************************************************
 // JUDY memory interface to malloc() FUNCTIONS:
 
-extern Word_t JudyMalloc(Word_t);               // words reqd => words allocd.
-extern Word_t JudyMallocVirtual(Word_t);        // words reqd => words allocd.
-extern void   JudyFree(Pvoid_t, Word_t);        // free, size in words.
-extern void   JudyFreeVirtual(Pvoid_t, Word_t); // free, size in words.
+extern JUDY_API Word_t JudyMalloc(Word_t);               // words reqd => words allocd.
+extern JUDY_API Word_t JudyMallocVirtual(Word_t);        // words reqd => words allocd.
+extern JUDY_API void   JudyFree(Pvoid_t, Word_t);        // free, size in words.
+extern JUDY_API void   JudyFreeVirtual(Pvoid_t, Word_t); // free, size in words.
 
 #define JLAP_INVALID    0x1     /* flag to mark pointer "not a Judy array" */
 
@@ -412,6 +465,10 @@ extern void   JudyFreeVirtual(Pvoid_t, Word_t); // free, size in words.
 #define J_2P(PV,PArray,Index,Arg2,Func,FuncName) \
         { (PV) = (Pvoid_t) Func(PArray, Index, Arg2, PJE0); }
 
+// 新增: 用于 JudyHSDelGet 的宏变体 (返回 Word_t + 输出参数)
+#define J_2I_PV(Rc,PArray,Index,Arg2,PValue,Func,FuncName) \
+        { (Rc) = Func(PArray, Index, Arg2, PValue, PJE0); }
+
 // Variations for Judy*Set/InsArray functions:
 
 #define J_2AI(Rc,PArray,Count,PIndex,Func,FuncName) \
@@ -492,6 +549,14 @@ extern void   JudyFreeVirtual(Pvoid_t, Word_t); // free, size in words.
             JError_t J_Error;                                           \
             if (((PV) = (Pvoid_t) Func(PArray, Index, Arg2, &J_Error))  \
                 == PJERR) J_E(FuncName, &J_Error);                      \
+        }
+
+// 新增: 用于 JudyHSDelGet 的宏变体 (返回 Word_t + 输出参数)
+#define J_2I_PV(Rc,PArray,Index,Arg2,PValue,Func,FuncName)              \
+        {                                                               \
+            JError_t J_Error;                                           \
+            if (((Rc) = Func(PArray, Index, Arg2, PValue, &J_Error)) == JERR) \
+                J_E(FuncName, &J_Error);                                \
         }
 
 // Variations for Judy*Set/InsArray functions:
@@ -593,9 +658,12 @@ extern void   JudyFreeVirtual(Pvoid_t, Word_t); // free, size in words.
 #define JHSI(PV,    PArray,   PIndex,   Count)                          \
         J_2P(PV, (&(PArray)), PIndex,   Count, JudyHSIns, "JudyHSIns")
 #define JHSG(PV,    PArray,   PIndex,   Count)                          \
-        (PV) = (Pvoid_t) JudyHSGet(PArray, PIndex, Count)
+        (PV) = (Pvoid_t) JudyHSGet(PArray, PIndex, Count, PJE0)
 #define JHSD(Rc,    PArray,   PIndex,   Count)                          \
         J_2I(Rc, (&(PArray)), PIndex, Count, JudyHSDel, "JudyHSDel")
+// 新增: 删除并返回被删除的值
+#define JHSDG(Rc,   PArray,   PIndex,   Count, PValue)                  \
+        J_2I_PV(Rc, (&(PArray)), PIndex, Count, &(PValue), JudyHSDelGet, "JudyHSDelGet")
 #define JHSFA(Rc,    PArray)                                            \
         J_0I(Rc, (&(PArray)), JudyHSFreeArray, "JudyHSFreeArray")
 

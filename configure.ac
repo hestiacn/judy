@@ -1,16 +1,18 @@
-AC_PREREQ(2.57)
-AC_INIT(Judy, 1.0.5, dougbaskins@yahoo.com)
+AC_PREREQ(2.69)
+AC_INIT(Judy, 1.0.6, dougbaskins@yahoo.com)
 
 AM_MAINTAINER_MODE
 
 dnl Turn on automake, and pass it the PACKAGE_NAME and PACKAGE_VERSION, too.
-AM_INIT_AUTOMAKE($PACKAGE_NAME, $PACKAGE_VERSION)
+AM_INIT_AUTOMAKE
+
+dnl Specify directory for additional macro files
+AC_CONFIG_MACRO_DIRS([m4])
 
 dnl Tell autoconf we want to keep our preprocessor defines in a header named
 dnl config.h.  This keeps automake from passing a zillion -D directives to
 dnl the C compiler.
-AM_CONFIG_HEADER([config.h])
-
+AC_CONFIG_HEADERS([config.h])
 dnl==========================================================================
 dnl WARNING - WARNING - Shared Library Versioning - WARNING - WARNING
 dnl==========================================================================
@@ -107,7 +109,7 @@ AC_MSG_CHECKING(which flavor to build)
 
 dnl Process our --enable-debug argument.
 AC_ARG_ENABLE(debug,
-              AC_HELP_STRING([--enable-debug],
+              AS_HELP_STRING([--enable-debug],
                              [enable debugging features]),
               , enable_debug=no)
 if test "x$enable_debug" != xyes -a "x$enable_debug" != xno; then
@@ -116,7 +118,7 @@ fi
 
 dnl Process our --enable-ccover argument.
 AC_ARG_ENABLE(ccover,
-              AC_HELP_STRING([--enable-ccover],
+              AS_HELP_STRING([--enable-ccover],
                              [enable use of ccover code coverage tools]),
               , enable_ccover=no)
 if test "x$enable_ccover" != xyes -a "x$enable_ccover" != xno; then
@@ -153,7 +155,7 @@ AC_PROG_MAKE_SET
 dnl==========================================================================
 dnl Checks for Header Files
 dnl==========================================================================
-AC_HEADER_STDC
+
 AC_CHECK_HEADERS([fcntl.h inttypes.h limits.h malloc.h stddef.h stdint.h stdlib.h string.h strings.h sys/param.h sys/time.h unistd.h])
 
 dnl==========================================================================
@@ -165,7 +167,6 @@ AC_HEADER_STDBOOL
 AC_C_CONST
 AC_C_INLINE
 AC_TYPE_SIZE_T
-AC_HEADER_TIME
 AC_STRUCT_TM
 AC_C_VOLATILE
 AC_CHECK_TYPES([ptrdiff_t])
@@ -227,7 +228,7 @@ AC_FUNC_STAT
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([getpagesize gettimeofday memset munmap pow strchr strcspn strerror strstr strtoul uname])
 
-dnl These must be called before AM_PROG_LIBTOOL, because it may want
+dnl These must be called before LT_INIT, because it may want
 dnl to call AC_CHECK_PROG.
 AC_CHECK_TOOL(AR, ar)
 AC_CHECK_TOOL(LD, ld)
@@ -235,7 +236,7 @@ AC_CHECK_TOOL(RANLIB, ranlib, :)
 
 dnl Checks for libtool - this must be done after we set cflags (abi issues)
 dnl
-AM_PROG_LIBTOOL
+LT_INIT
 
 WARN_CFLAGS=""
 build_warnings="-W -Wall -Wstrict-prototypes -Wmissing-prototypes"
@@ -248,18 +249,24 @@ if test x"$build_warnings" = xyes; then
 fi
 
 AC_SUBST(WARN_CFLAGS)
+AC_CHECK_PROG([PKG_CONFIG], [pkg-config], [pkg-config])
+if test "x$PKG_CONFIG" = "x"; then
+    AC_MSG_ERROR([pkg-config is required but not found. Please install pkg-config or pkgconf.])
+fi
 
+PC_PATH=`$PKG_CONFIG --variable=pc_path pkg-config | cut -d: -f1`
+AC_SUBST([PC_PATH])
 AC_CONFIG_FILES([Makefile
-                 src/Judy1/Makefile
-                 src/JudyCommon/Makefile
-                 src/JudyHS/Makefile
-                 src/JudyL/Makefile
-                 src/JudySL/Makefile
-                 src/Makefile
-                 src/obj/Makefile
-		 tool/Makefile
-		 doc/Makefile
-		 test/Makefile])
-
+            src/Judy1/Makefile
+            src/JudyCommon/Makefile
+            src/JudyHS/Makefile
+            src/JudyL/Makefile
+            src/JudySL/Makefile
+            src/Makefile
+            src/judy.pc
+            src/libobj/Makefile
+            tool/Makefile
+            doc/Makefile
+            test/Makefile])
 
 AC_OUTPUT

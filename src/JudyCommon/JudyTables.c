@@ -216,14 +216,13 @@ FUNCTION int main()
 	fprintf(fd," %d,", AllocSizes[ii]);
 
 #ifndef JU_64BIT
-    fprintf(fd," Leaf1 = %d\";\n\n", cJ1_LEAF1_MAXPOP1);
+    fprintf(fd," Leaf1 = %zu\";\n\n", (size_t)cJ1_LEAF1_MAXPOP1);
 #else
     fprintf(fd,"\";\n\n");			// no Leaf1 in this case.
 #endif
 
 // ================================ 32 bit ================================
 #ifndef JU_64BIT
-
     GenTable("j__1_BranchBJP","cJU_BITSPERSUBEXPB", 8, cJU_BITSPERSUBEXPB,0,0);
 
     GenTable("j__1_Leaf1", "cJ1_LEAF1_MAXPOP1", 1, cJ1_LEAF1_MAXPOP1, 0, 0);
@@ -231,10 +230,8 @@ FUNCTION int main()
     GenTable("j__1_Leaf3", "cJ1_LEAF3_MAXPOP1", 3, cJ1_LEAF3_MAXPOP1, 0, 0);
     GenTable("j__1_LeafW", "cJ1_LEAFW_MAXPOP1", 4, cJ1_LEAFW_MAXPOP1, 0, 1);
 
-#endif
-
+#else
 // ================================ 64 bit ================================
-#ifdef JU_64BIT
     GenTable("j__1_BranchBJP","cJU_BITSPERSUBEXPB",16, cJU_BITSPERSUBEXPB,0,0);
 
     GenTable("j__1_Leaf2", "cJ1_LEAF2_MAXPOP1", 2, cJ1_LEAF2_MAXPOP1, 0, 0);
@@ -260,7 +257,7 @@ FUNCTION int main()
     for (ii = 0; AllocSizes[ii] != TERMINATOR; ii++)
 	fprintf(fd," %d,", AllocSizes[ii]);
 
-    fprintf(fd," Leaf1 = %ld\";\n\n", (Word_t)cJL_LEAF1_MAXPOP1);
+    fprintf(fd," Leaf1 = %zu\";\n\n", (size_t)cJL_LEAF1_MAXPOP1);
 
 #ifndef JU_64BIT
 // ================================ 32 bit ================================

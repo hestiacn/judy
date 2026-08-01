@@ -1,0 +1,65 @@
+name: 'Build Windows (MSVC)'
+
+on:
+  #push:                          # ← 自动触发请取消注释
+  workflow_dispatch:               # ← 手动触发请取消注释
+
+jobs:
+  build-judy:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, x86]
+    
+    steps:
+    - uses: actions/checkout@v7
+    
+    - name: Setup MSVC (${{ matrix.arch }})
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: ${{ matrix.arch }}
+    
+    - name: Show compiler
+      run: cl
+      shell: cmd
+    
+    - name: Run build.bat
+      run: |
+        cd src
+        build.bat
+      shell: cmd
+    
+    - name: Check outputs
+      run: |
+        cd src
+        echo ========================================
+        if exist Judy.dll ( echo ✅ Judy.dll found ) else ( echo ❌ Judy.dll not found )
+        if exist Judy.lib ( echo ✅ Judy.lib found ) else ( echo ❌ Judy.lib not found )
+        echo ========================================
+        echo Verifying DLL architecture:
+        dumpbin /HEADERS Judy.dll | findstr "machine"
+        echo ========================================
+      shell: cmd
+    
+    - name: Generate checksums.txt
+      run: |
+        cd src
+        echo Generating checksums.txt...
+        if exist Judy.dll certutil -hashfile Judy.dll SHA256 | findstr /v "certutil" > checksums.txt
+        if exist Judy.lib certutil -hashfile Judy.lib SHA256 | findstr /v "certutil" >> checksums.txt
+        echo ========================================
+        echo Checksums:
+        type checksums.txt
+        echo ========================================
+      shell: cmd
+    
+    - name: Upload artifacts (${{ matrix.arch }})
+      if: success()
+      uses: actions/upload-artifact@v7
+      with:
+        name: judy-windows-msvc-${{ matrix.arch }}
+        path: |
+          src/Judy.dll
+          src/Judy.lib
+          src/checksums.txt
+        retention-days: 7

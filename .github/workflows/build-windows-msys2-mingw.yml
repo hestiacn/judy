@@ -1,0 +1,73 @@
+name: 'build-msys2-mingw'
+
+on:
+  #push:                          # ← 自动触发请取消注释
+  workflow_dispatch:            # ← 手动触发请取消注释
+
+  # schedule:                    # ← 注释掉定时器
+  #   - cron: '0 0 * * *'
+
+jobs:
+
+  msys2:
+    runs-on: windows-latest
+    strategy:
+        fail-fast: false
+        matrix:
+          target: [
+            { msys2: MINGW32, arch: i686 },
+            { msys2: MINGW64, arch: x86_64}
+          ]
+    continue-on-error: true
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      MINGW_INSTALLS: ${{ matrix.target.msys2 }}
+    steps:
+
+    - run: git config --global core.autocrlf input
+      shell: bash
+
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: >
+          base-devel
+          git
+          mingw-w64-${{ matrix.target.arch }}-toolchain
+        msystem: ${{ matrix.target.msys2 }}
+
+    - name: Build package
+      working-directory: packaging/msys2
+      run: |
+        makepkg-mingw --noconfirm --noprogressbar -sCLfc
+
+    - name: Organize artifacts by architecture
+      working-directory: packaging/msys2
+      run: |
+        # 创建架构目录
+        mkdir -p ../../artifacts/judy-windows-msys2-mingw-${{ matrix.target.arch }}
+        
+        # 复制包文件
+        cp *.pkg.tar.zst ../../artifacts/judy-windows-msys2-mingw-${{ matrix.target.arch }}/
+        
+        # 生成 SHA256 校验和
+        cd ../../artifacts/judy-windows-msys2-mingw-${{ matrix.target.arch }}
+        sha256sum *.pkg.tar.zst > checksums.txt
+        
+        echo "========================================"
+        echo "✅ ${{ matrix.target.arch }} 构建完成"
+        echo "========================================"
+        cat checksums.txt
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: judy-windows-msys2-mingw-${{ matrix.target.arch }}
+        path: artifacts/judy-windows-msys2-mingw-${{ matrix.target.arch }}/
+        retention-days: 90

@@ -1,17 +1,72 @@
-echo  "--- This is a compile kit to suggest how to port to your machine"
-echo  "--- This script runs in 7 seconds on a 3.2Ghz Pentium P4C"
-echo  "--- Must be in the 'src' directory to execute this script"
-echo  "--- I normally run it like: COPT='-O3 -march=i686' sh_build"
+#!/bin/sh
+# ==============================================================================
+# 编译引导提示 | Compilation Guide
+# ==============================================================================
+echo "--- [Compile Kit] Cross-platform build & packaging utility"
+echo "--- Requirements: Must be executed directly from inside the 'src' directory"
+echo "--- Performance: Completes in a few seconds on modern multi-core systems"
+echo "--- Default Configuration: COPT='-O2' (Production Standard)"
+echo "--- Pro-Tip: Optimize for your current host CPU by running:"
+echo "---          COPT='-O3 -march=native' ./build.sh"
 
-echo  "--- Set Compiler"
+echo "--- Set Compiler"
+
+# ==============================================================================
+# 编译器配置 | Compiler Settings
+# ==============================================================================
+# 注意 | Note：
+#   C 与 C++ 编译器必须严格成对使用（家族严禁混用），否则会导致底层链接失败。
+#   C and C++ compilers must be strictly paired (do not mix families), otherwise
+#   linking errors will occur.
+#
+# 平台推荐 | Platform Recommendations：
+#   - FreeBSD / macOS : CC='clang'  且/and CXX='clang++' (系统原生，推荐 | native, recommended)
+#   - Linux (RHEL/Ubuntu): CC='gcc' 且/and CXX='g++'     (系统默认，兼容好 | default, good compatibility)
+#
+# 说明 | Note：
+#   下方代码会自动检测系统。如果是 FreeBSD，会自动指定 CXX='c++'（即 clang++），
+#   从而在不修改 configure 文件的前提下，强行覆盖其内部的降级逻辑。
+#   The code below auto-detects the system. On FreeBSD, it sets CXX='c++' (clang++)
+#   to override the internal fallback logic without modifying configure files.
 CC='cc'
 
-echo  "--- Set Optimization"
-# COPT='-O'
+# ==============================================================================
+# 编译器家族自动探测 | Auto-detect compiler family
+# ==============================================================================
+# 通过解析编译器版本信息，实现跨平台自动联动切换
+# Auto-switch between compiler families by parsing version info
+IS_CLANG=$($CC --version 2>&1 | grep -i "clang")
 
-echo  "--- Set Shared library option"
-#  CPIC='-fPIC
-CPIC=''
+if [ -n "$IS_CLANG" ]; then
+    # 自动配对：在 FreeBSD/macOS 上使用系统原生 Clang++ 接口
+    # Auto-pair: use native Clang++ on FreeBSD/macOS
+    CXX='c++'
+    echo "--- Detected Clang Compiler Family"
+else
+    # 自动配对：在 Linux 上回退至常规的 G++ 编译器
+    # Auto-pair: fallback to G++ on Linux
+    CXX='g++'
+    echo "--- Detected GCC or Other Compiler Family"
+fi
+
+echo "--- Set Optimization"
+COPT='-O2'
+# ==============================================================================
+# 位置无关代码配置 | Position Independent Code (PIC)
+# ==============================================================================
+# -fPIC: 生成位置无关代码，用于编译共享动态库（.so / .dylib）
+#        Generate position-independent code for shared libraries (.so / .dylib)
+#
+# 各平台要求 | Platform Requirements：
+#   - FreeBSD (amd64)     : 绝对必须 | Mandatory
+#   - Linux (x86_64/ARM64): 绝对必须，否则链接动态库时会触发致命错误
+#                           | Mandatory, otherwise linking will fail
+#   - macOS (Darwin)      : 系统默认强制开启，显式指定可保持多平台兼容性
+#                           | Enabled by default, explicit setting ensures compatibility
+#   - Windows (MinGW)     : 不需要（Windows 动态库采用重定位机制，此参数无效）
+#                           | Not needed (uses relocation mechanism instead)
+CPIC='-fPIC'
+
 
 echo "--- Compile JudyMalloc - common to Judy1 and JudyL"
 echo "--- cd JudyCommon"
@@ -141,7 +196,7 @@ echo "--- $CC  $COPT $CPIC -I. -I.. -I../JudyCommon -c -DJUDYL -DJUDYGETINLINE j
 $CC  $COPT $CPIC -I. -I.. -I../JudyCommon -c -DJUDYL -DJUDYGETINLINE j__udyLGet.c
 echo "--- $CC  $COPT $CPIC -I. -I.. -I../JudyCommon -c -DJUDYL JudyLIns.c"
 $CC  $COPT $CPIC -I. -I.. -I../JudyCommon -c -DJUDYL JudyLIns.c
-echo "--- $CC  $COPT $CPIC -I. -I.. -I../JudyCommon -c -DJUDYL JudyLIns.c"
+echo "--- $CC  $COPT $CPIC -I. -I.. -I../JudyCommon -c -DJUDYL JudyLInsArray.c"
 $CC  $COPT $CPIC -I. -I.. -I../JudyCommon -c -DJUDYL JudyLInsArray.c
 echo "--- $CC  $COPT $CPIC -I. -I.. -I../JudyCommon -c -DJUDYL JudyLDel.c"
 $CC  $COPT $CPIC -I. -I.. -I../JudyCommon -c -DJUDYL JudyLDel.c
@@ -196,11 +251,12 @@ echo "--- cd .."
 cd ..
 
 # Make a Judy shared library with CPIC='-fPIC' above
-#ld -shared -o libJudy.so Judy*/*.o
-#
-#  -OR-
-#
-echo "--- Make a Judy static library"
-ar -r libJudy.a Judy*/*.o
-
+echo "--- Make a Judy shared library (libJudy.so)"
+$CC -shared -o libJudy.so Judy*/*.o -lm
+ls -lh libJudy.so
+echo "--- Make a Judy static library (libJudy.a)"
+ar -rc libJudy.a Judy*/*.o
+ls -lh libJudy.a
+echo "--- Install pkg-config copy judy.pc file"
+pkg-config --variable=pc_path pkg-config | cut -d: -f1 | xargs -I {} sh -c 'mkdir -p {} && cp judy.pc {} && echo "judy.pc installed to {}"'
 echo "--- Done"

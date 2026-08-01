@@ -4,7 +4,7 @@ echo Set Compiler
 SET CC=cl
 
 echo Set Options
-SET COPT=-DJU_WIN
+SET COPT=-DJU_WIN -DJUDY_DLL_EXPORT
 SET O=-DJUDY1
 SET L=-DJUDYL
 SET INC=-I.. -I..\JudyCommon
@@ -61,13 +61,13 @@ copy JudyCommon\JudyTables.c	        JudyL\JudyLTablesGen.c
 
 echo Compile JudyCommon\JudyMalloc - common to Judy1 and JudyL
 cd JudyCommon
-%CC% -I. -I.. -DJU_WIN -c JudyMalloc.c
+%CC% -I. -I.. -DJU_WIN -DJUDY_DLL_EXPORT -c JudyMalloc.c
 
 cd ..
 
 echo This table is constructed from Juudy1.h data to match malloc(3) needs
 cd Judy1
-%CC% %INC% %COPT% %O% Judy1TablesGen.c -o Judy1TablesGen
+%CC% %INC% %COPT% %O% Judy1TablesGen.c /Fe:Judy1TablesGen.exe
 del Judy1TablesGen.obj
 Judy1TablesGen
 %CC% %INC% %COPT% %O% -c Judy1Tables.c
@@ -118,7 +118,7 @@ cd ..
 cd JudyL
 
 echo This table is constructed from Juudy1.h data to match malloc(3) needs
-%CC% %INC% %COPT% JudyLTablesGen.c %L% -o JudyLTablesGen
+%CC% %INC% %COPT% JudyLTablesGen.c %L% /Fe:JudyLTablesGen.exe
 del JudyLTablesGen.obj
 JudyLTablesGen
 %CC% %INC% %COPT% %L% -c JudyLTables.c

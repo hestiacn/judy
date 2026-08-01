@@ -1,3 +1,6 @@
+# Tell automake where to find additional m4 macros
+ACLOCAL_AMFLAGS = -I m4
+
 # Tell automake we don't want to comply with every last clause in the
 # GNU Maintainer's Manual.
 AUTOMAKE_OPTIONS = foreign
@@ -9,7 +12,7 @@ AUTOMAKE_OPTIONS = foreign
 # Dependencies: src <- tool (for libJudy), tool <- doc (for jhton), src <-
 # test (for libJudy).
 #SUBDIRS = src tool doc test make_includes
-#SUBDIRS = src/JudyCommon src/JudyL src/Judy1 src/JudySL src/JudyHS src/obj
+#SUBDIRS = src/JudyCommon src/JudyL src/Judy1 src/JudySL src/JudyHS src/libobj
 SUBDIRS = src tool doc test
 
 # These files will be included in our tarballs, even though automake knows
